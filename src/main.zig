@@ -22,7 +22,9 @@ const Camera = struct {
 var camera: Camera = .{.pos = .zero(), .zoom = 1.0};
 var screen_aabb: AABB = .{.min = .zero(), .max = .zero()};
 var do_grapple: bool = false;
-var grapple_target: vec.Vector2f = .zero();
+//var grapple_target: vec.Vector2f = .zero();
+var wrap_points: [100]vec.Vector2f = undefined; // Index 0 is the point closest to the player
+var num_wrap_points: usize = 0;
 var rope_len: f32 = 0.0;
 var player_pos: vec.Vector2f = .zero();
 var pull_in: bool = false;
@@ -58,6 +60,65 @@ const AABB = struct {
                 out.y = if (@abs(pos.y-aabb.min.y) < @abs(pos.y-aabb.max.y)) aabb.min.y else aabb.max.y;
             }
         }
+        return out;
+    }
+    
+    pub fn raycast(aabb: AABB, orig: vec.Vector2f, dir: vec.Vector2f) ?vec.Vector2f {
+        var out: ?vec.Vector2f = null;
+        
+        const slope: f32 = dir.y / dir.x;
+        const inv_slope: f32 = dir.x / dir.y;
+            
+        const rise1: f32 = aabb.min.y - orig.y;
+        const run1: f32 = rise1 / slope;
+        var hit1: ?vec.Vector2f = .{ .x = run1 + orig.x, .y = aabb.min.y };
+        if (hit1.?.x < aabb.min.x or hit1.?.x > aabb.max.x) {
+            hit1 = null;
+        }
+        
+        const rise2: f32 = aabb.max.y - orig.y;
+        const run2: f32 = rise2 / slope;
+        var hit2: ?vec.Vector2f = .{ .x = run2 + orig.x, .y = aabb.max.y };
+        if (hit2.?.x < aabb.min.x or hit2.?.x > aabb.max.x) {
+            hit2 = null;
+        }
+        
+        
+        const rise3: f32 = aabb.min.x - orig.x;
+        const run3: f32 = rise3 / inv_slope;
+        var hit3: ?vec.Vector2f = .{ .x = aabb.min.x, .y = run3 + orig.y };
+        if (hit3.?.y < aabb.min.y or hit3.?.y > aabb.max.y) {
+            hit3 = null;
+        }
+        
+        const rise4: f32 = aabb.max.x - orig.x;
+        const run4: f32 = rise4 / inv_slope;
+        var hit4: ?vec.Vector2f = .{ .x = aabb.max.x, .y = run4 + orig.y };
+        if (hit4.?.y < aabb.min.y or hit4.?.y > aabb.max.y) {
+            hit4 = null;
+        }
+        
+        const hit1_dist: f32 = if (hit1) |h| h.subtract(orig).length() else std.math.inf(f32);
+        const hit2_dist: f32 = if (hit2) |h| h.subtract(orig).length() else std.math.inf(f32);
+        const hit3_dist: f32 = if (hit3) |h| h.subtract(orig).length() else std.math.inf(f32);
+        const hit4_dist: f32 = if (hit4) |h| h.subtract(orig).length() else std.math.inf(f32);
+        
+        if (hit1_dist < hit2_dist and hit1_dist < hit3_dist and hit1_dist < hit4_dist) {
+            out = hit1;
+        } else if (hit2_dist < hit1_dist and hit2_dist < hit3_dist and hit2_dist < hit4_dist) {
+            out = hit2;
+        } else if (hit3_dist < hit1_dist and hit3_dist < hit2_dist and hit3_dist < hit4_dist) {
+            out = hit3;
+        } else {
+            out = hit4;
+        }
+        
+        if (out) |o| {
+            if (orig.subtract(o).normalize().dot(dir) < 0.0 or orig.subtract(o).length() > rope_len - 20.0) {
+                return null;
+            }
+        }
+        
         return out;
     }
     
@@ -122,6 +183,25 @@ fn drawLineWorld(cam: Camera, a: vec.Vector2f, b: vec.Vector2f) void {
     c.CNFGTackSegment(x1, y1, x2, y2);
 }
 
+fn raycastWorld(boxes: []AABB, orig: vec.Vector2f, dir: vec.Vector2f) ?vec.Vector2f {
+    var closestHit: ?vec.Vector2f = null;
+    
+    for (boxes) |box| {
+        const result: ?vec.Vector2f = box.raycast(orig, dir);
+        if (result) |r| {
+            if (closestHit) |ch| {
+                if (r.subtract(orig).length() < ch.subtract(orig).length()) {
+                    closestHit = r;
+                }
+            } else {
+                closestHit = r;
+            }
+        }
+    }
+    
+    return closestHit;
+}
+
 export fn HandleKey(keycode: c_int, bDown: c_int) void {
     _ = bDown;
     _ = keycode;
@@ -129,20 +209,23 @@ export fn HandleKey(keycode: c_int, bDown: c_int) void {
 
 export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
     //std.debug.print("{} {}\n", .{button, bDown});
-     if (bDown == 1) {
-         if (button == 1) {
-             do_grapple = true;
-             pull_in = true;
-             grapple_target.x = @floatFromInt(x);
-             grapple_target.y = @floatFromInt(y);
-             grapple_target = grapple_target.add(camera.pos);
-             rope_len = player_pos.subtract(grapple_target).length();
-         } else if (button == 3) {
-             do_grapple = false;
+    if (bDown == 1) {
+        if (button == 1) {
+            do_grapple = true;
+            pull_in = true;
+            
+            wrap_points[0].x = @floatFromInt(x);
+            wrap_points[0].y = @floatFromInt(y);
+            wrap_points[0] = wrap_points[0].add(camera.pos);
+            num_wrap_points = 1;
+            
+            rope_len = player_pos.subtract(wrap_points[0]).length();
+        } else if (button == 3) {
+            do_grapple = false;
         }
-     } else if (bDown == 0) {
-         if (button == 1) {
-             pull_in = false;
+    } else if (bDown == 0) {
+        if (button == 1) {
+            pull_in = false;
         }
     }
 }
@@ -162,11 +245,11 @@ fn inAABB(x: i32, y: i32, min_x: i32, min_y: i32, max_x: i32, max_y: i32) bool {
 pub fn main(init: std.process.Init) !void {
     const allocator: std.mem.Allocator = init.gpa;
     _ = allocator;
-
+    
     _ = c.CNFGSetup("Grapple Game", width, height);
     screen_aabb.max.x = @floatFromInt(width);
     screen_aabb.max.y = @floatFromInt(height);
-
+    
     var stdout_buffer: [1024]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
     const stdout = &stdout_writer.interface;
@@ -184,8 +267,8 @@ pub fn main(init: std.process.Init) !void {
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
     var player_vel: vec.Vector2f = .{ .x = 0.0, .y = 0.0 };
     
-    rope_len = player_pos.subtract(grapple_target).length();
-
+    rope_len = player_pos.subtract(wrap_points[0]).length();
+    
     var last_pos: vec.Vector2f = player_pos;
     var lastTime: std.Io.Timestamp = std.Io.Clock.real.now(init.io);
     var frameNum: usize = 0;
@@ -197,21 +280,62 @@ pub fn main(init: std.process.Init) !void {
         
         const dt: f32 = 1.0/60.0;
         
+        // Integrator
         const player_acc: vec.Vector2f = .{ .x = 0.0, .y = 50.0 };
         player_vel = player_pos.subtract(last_pos).divideScalar(dt);
         last_pos = player_pos;
         player_vel = player_vel.add(player_acc.multScalar(dt));
         player_pos = player_pos.add(player_vel.multScalar(dt));
         
-//         if (pull_in) {
-//             //do_grapple = true;
-//             pull_in = true;
-//             grapple_target.x = @floatFromInt(mouseX);
-//             grapple_target.y = @floatFromInt(mouseY);
-//             grapple_target = grapple_target.add(camera.pos);
-//             //rope_len = player_pos.subtract(grapple_target).length();
-//         }
+        //         if (pull_in) {
+        //             //do_grapple = true;
+        //             pull_in = true;
+        //             grapple_target.x = @floatFromInt(mouseX);
+        //             grapple_target.y = @floatFromInt(mouseY);
+        //             grapple_target = grapple_target.add(camera.pos);
+        //             //rope_len = player_pos.subtract(grapple_target).length();
+        //         }
         
+        // Unwrap logic
+        if (do_grapple and num_wrap_points > 1) {
+            const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize());
+            if (result == null) {
+                _ = c.CNFGColor(0xFFFFFF00);
+                drawLineWorld(camera, player_pos, wrap_points[1]);
+                std.debug.print("b\n", .{});
+                for (0..num_wrap_points-1) |i| {
+                    _ = i;
+                    //wrap_points[i] = wrap_points[i + 1];
+                }
+                //num_wrap_points -= 1;
+                //rope_len = 400.0;//player_pos.subtract(wrap_points[0]).length();
+            } else {
+                _ = c.CNFGColor(0xFF000000);
+                drawLineWorld(camera, player_pos, result.?);
+            }
+        }
+        
+        // Wrap logic
+        if (do_grapple) {
+            const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
+            if (result) |r| {
+                std.debug.print("a\n", .{});
+                _ = c.CNFGColor(0xFFFF0000);
+                drawLineWorld(camera, player_pos, r);
+                num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
+                var i: usize = num_wrap_points - 1;
+                while (i > 0) : (i -= 1) {
+                    //std.debug.print("{}\n", .{i});
+                    wrap_points[i] = wrap_points[i - 1];
+                }
+                wrap_points[0] = r;
+                rope_len = player_pos.subtract(wrap_points[0]).length();
+            }
+        }
+        
+        std.debug.print("{}\n", .{ num_wrap_points });
+        
+        // Rope physics
         if (do_grapple) {
             if (pull_in and rope_len > 50.0 * dt) {
                 rope_len -= 50.0 * dt;
@@ -219,16 +343,17 @@ pub fn main(init: std.process.Init) !void {
                 //player_vel = player_vel.add(dir.multScalar(-1.0));
             }
             
-            const target_dist: f32 = player_pos.subtract(grapple_target).length();
+            const target_dist: f32 = player_pos.subtract(wrap_points[0]).length();
             //std.debug.print("{d:.2} {d:.2}\n", .{target_dist, rope_len});
             if (target_dist > rope_len or false) {
-                const dir: vec.Vector2f = player_pos.subtract(grapple_target).normalize();
+                const dir: vec.Vector2f = player_pos.subtract(wrap_points[0]).normalize();
                 const vel_to_redirect: f32 = @max(player_vel.dot(dir), 0.0);
                 player_vel = player_vel.subtract(dir.multScalar(vel_to_redirect)); // TODO: Take this removed energy and apply it tangent to the rope
                 player_pos = player_pos.subtract(dir.multScalar(target_dist - rope_len));
             }
         }
         
+        // Collision physics
         var colliding: bool = false;
         var cp: vec.Vector2f = .zero();
         for (boxes) |box| {
@@ -258,7 +383,10 @@ pub fn main(init: std.process.Init) !void {
         
         _ = c.CNFGColor(ROPE_COLOR);
         if (do_grapple) {
-            drawLineWorld(camera, grapple_target, player_pos);
+            drawLineWorld(camera, wrap_points[0], player_pos);
+            for (0..num_wrap_points-1) |i| {
+                drawLineWorld(camera, wrap_points[i], wrap_points[i+1]);
+            }
         }
         
         _ = c.CNFGColor(BOX_COLOR);
@@ -273,7 +401,7 @@ pub fn main(init: std.process.Init) !void {
             _ = c.CNFGColor(0x0000FF00);
             //drawCircleWorld(camera, cp, 4.0);
         }
-
+        
         c.CNFGSwapBuffers();
         const now: std.Io.Timestamp = std.Io.Clock.real.now(init.io);
         if (lastTime.durationTo(now).nanoseconds < 16_666_666) {
@@ -282,7 +410,7 @@ pub fn main(init: std.process.Init) !void {
         lastTime = now;
         frameNum += 1;
     }
-
+    
     try stdout.flush();
 }
 
