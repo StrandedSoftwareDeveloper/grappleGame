@@ -114,7 +114,7 @@ const AABB = struct {
         }
         
         if (out) |o| {
-            if (orig.subtract(o).normalize().dot(dir) < 0.0 or orig.subtract(o).length() > rope_len - 20.0) {
+            if (orig.subtract(o).normalize().dot(dir) < 0.0) {
                 return null;
             }
         }
@@ -211,15 +211,19 @@ export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
     //std.debug.print("{} {}\n", .{button, bDown});
     if (bDown == 1) {
         if (button == 1) {
-            do_grapple = true;
-            pull_in = true;
-            
-            wrap_points[0].x = @floatFromInt(x);
-            wrap_points[0].y = @floatFromInt(y);
-            wrap_points[0] = wrap_points[0].add(camera.pos);
-            num_wrap_points = 1;
-            
-            rope_len = player_pos.subtract(wrap_points[0]).length();
+            if (!do_grapple) {
+                do_grapple = true;
+                pull_in = true;
+                
+                wrap_points[0].x = @floatFromInt(x);
+                wrap_points[0].y = @floatFromInt(y);
+                wrap_points[0] = wrap_points[0].add(camera.pos);
+                num_wrap_points = 1;
+                
+                rope_len = player_pos.subtract(wrap_points[0]).length();
+            } else {
+                pull_in = true;
+            }
         } else if (button == 3) {
             do_grapple = false;
         }
@@ -299,16 +303,20 @@ pub fn main(init: std.process.Init) !void {
         // Unwrap logic
         if (do_grapple and num_wrap_points > 1) {
             const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize());
-            if (result == null) {
+            //_ = c.CNFGColor(0x77777700);
+            //drawCircleWorld(camera, player_pos, 10.0);
+            //_ = c.CNFGColor(0x77777700);
+            //drawCircleWorld(camera, player_pos.subtract(wrap_points[1]).normalize().multScalar(-10.0).add(player_pos), 10.0);
+            if (result == null or player_pos.subtract(result.?).length() > player_pos.subtract(wrap_points[1]).length() - 20.0) {
                 _ = c.CNFGColor(0xFFFFFF00);
                 drawLineWorld(camera, player_pos, wrap_points[1]);
-                std.debug.print("b\n", .{});
+                //std.debug.print("b\n", .{});
                 for (0..num_wrap_points-1) |i| {
-                    _ = i;
-                    //wrap_points[i] = wrap_points[i + 1];
+                    //_ = i;
+                    wrap_points[i] = wrap_points[i + 1];
                 }
-                //num_wrap_points -= 1;
-                //rope_len = 400.0;//player_pos.subtract(wrap_points[0]).length();
+                num_wrap_points -= 1;
+                rope_len = player_pos.subtract(wrap_points[0]).length();
             } else {
                 _ = c.CNFGColor(0xFF000000);
                 drawLineWorld(camera, player_pos, result.?);
@@ -319,17 +327,19 @@ pub fn main(init: std.process.Init) !void {
         if (do_grapple) {
             const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
             if (result) |r| {
-                std.debug.print("a\n", .{});
-                _ = c.CNFGColor(0xFFFF0000);
-                drawLineWorld(camera, player_pos, r);
-                num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
-                var i: usize = num_wrap_points - 1;
-                while (i > 0) : (i -= 1) {
-                    //std.debug.print("{}\n", .{i});
-                    wrap_points[i] = wrap_points[i - 1];
+                if (player_pos.subtract(r).length() < rope_len - 20.0) {
+                    std.debug.print("a\n", .{});
+                    _ = c.CNFGColor(0xFFFF0000);
+                    drawLineWorld(camera, player_pos, r);
+                    num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
+                    var i: usize = num_wrap_points - 1;
+                    while (i > 0) : (i -= 1) {
+                        //std.debug.print("{}\n", .{i});
+                        wrap_points[i] = wrap_points[i - 1];
+                    }
+                    wrap_points[0] = r;
+                    rope_len = player_pos.subtract(wrap_points[0]).length();
                 }
-                wrap_points[0] = r;
-                rope_len = player_pos.subtract(wrap_points[0]).length();
             }
         }
         
