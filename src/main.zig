@@ -29,6 +29,7 @@ var rope_len: f32 = 0.0;
 var player_pos: vec.Vector2f = .zero();
 var pull_in: bool = false;
 var just_released: bool = false;
+var world_boxes: [20]AABB = undefined;
 
 const AABB = struct {
     min: vec.Vector2f,
@@ -262,10 +263,9 @@ pub fn main(init: std.process.Init) !void {
     const rng: std.Random = pcg.random();
     
     
-    var boxes: [20]AABB = undefined;
-    for (0..boxes.len) |i| {
-        boxes[i].min = .{.x = rng.float(f32) * (screen_aabb.max.x - BOX_SIZE.x), .y = rng.float(f32) * (screen_aabb.max.y - BOX_SIZE.y)};
-        boxes[i].max = boxes[i].min.add(BOX_SIZE);
+    for (0..world_boxes.len) |i| {
+        world_boxes[i].min = .{.x = rng.float(f32) * (screen_aabb.max.x - BOX_SIZE.x), .y = rng.float(f32) * (screen_aabb.max.y - BOX_SIZE.y)};
+        world_boxes[i].max = world_boxes[i].min.add(BOX_SIZE);
     }
     
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
@@ -302,7 +302,7 @@ pub fn main(init: std.process.Init) !void {
         
         // Unwrap logic
         if (do_grapple and num_wrap_points > 1) {
-            const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize());
+            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize());
             //_ = c.CNFGColor(0x77777700);
             //drawCircleWorld(camera, player_pos, 10.0);
             //_ = c.CNFGColor(0x77777700);
@@ -326,7 +326,7 @@ pub fn main(init: std.process.Init) !void {
         
         // Wrap logic
         if (do_grapple) {
-            const result: ?vec.Vector2f = raycastWorld(&boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
+            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
             if (result) |r| {
                 if (player_pos.subtract(r).length() < rope_len - 20.0) {
                     std.debug.print("a\n", .{});
@@ -367,7 +367,7 @@ pub fn main(init: std.process.Init) !void {
         // Collision physics
         var colliding: bool = false;
         var cp: vec.Vector2f = .zero();
-        for (boxes) |box| {
+        for (world_boxes) |box| {
             const sdf: f32 = box.SDF(player_pos);
             if (sdf < PLAYER_RAD) {
                 //const cp: vec.Vector2f = box.closestPoint(player_pos);
@@ -401,7 +401,7 @@ pub fn main(init: std.process.Init) !void {
         }
         
         _ = c.CNFGColor(BOX_COLOR);
-        for (boxes) |box| {
+        for (world_boxes) |box| {
             box.draw(camera);
         }
         
