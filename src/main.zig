@@ -307,7 +307,8 @@ pub fn main(init: std.process.Init) !void {
             //drawCircleWorld(camera, player_pos, 10.0);
             //_ = c.CNFGColor(0x77777700);
             //drawCircleWorld(camera, player_pos.subtract(wrap_points[1]).normalize().multScalar(-10.0).add(player_pos), 10.0);
-            if (result == null or player_pos.subtract(result.?).length() > player_pos.subtract(wrap_points[1]).length() - 20.0) {
+            const is_straight: bool = wrap_points[0].subtract(player_pos).normalize().dot(wrap_points[1].subtract(player_pos).normalize()) > 0.99;
+            if ((result == null or player_pos.subtract(result.?).length() > player_pos.subtract(wrap_points[1]).length() - 20.0) and is_straight) { // Unwrap
                 _ = c.CNFGColor(0xFFFFFF00);
                 drawLineWorld(camera, player_pos, wrap_points[1]);
                 //std.debug.print("b\n", .{});
@@ -319,7 +320,7 @@ pub fn main(init: std.process.Init) !void {
                 rope_len = player_pos.subtract(wrap_points[0]).length();
             } else {
                 _ = c.CNFGColor(0xFF000000);
-                drawLineWorld(camera, player_pos, result.?);
+                //drawLineWorld(camera, player_pos, result orelse wrap_points[1]);
             }
         }
         
