@@ -398,8 +398,8 @@ pub fn main(init: std.process.Init) !void {
         if (do_grapple) {
             const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
             if (result) |r| {
-                if (player_pos.subtract(r).length() < rope_len - 20.0) {
-                    //std.debug.print("a\n", .{});
+                if (player_pos.subtract(r).length() < @min(player_pos.subtract(wrap_points[0]).length(), rope_len) - 20.0) {
+                    //std.debug.print("a {d:.2}, {d:.2}\n", .{player_pos.subtract(r).length(), rope_len});
                     _ = c.CNFGColor(0xFFFF0000);
                     drawLineWorld(camera, player_pos, r);
                     num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
