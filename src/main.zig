@@ -19,6 +19,14 @@ const Camera = struct {
     zoom: f32, // Does nothing for now
 };
 
+const InputEvent = struct {
+    frame: usize,
+    x: c_int,
+    y: c_int,
+    button: c_int,
+    bDown: c_int,
+};
+
 var camera: Camera = .{.pos = .zero(), .zoom = 1.0};
 var screen_aabb: AABB = .{.min = .zero(), .max = .zero()};
 var do_grapple: bool = false;
@@ -30,6 +38,9 @@ var player_pos: vec.Vector2f = .zero();
 var pull_in: bool = false;
 var just_released: bool = false;
 var world_boxes: [20]AABB = undefined;
+var frameNum: usize = 0;
+var input_sequence: std.ArrayList(InputEvent) = undefined;
+var global_allocator: std.mem.Allocator = undefined;
 
 const AABB = struct {
     min: vec.Vector2f,
@@ -229,7 +240,8 @@ export fn HandleKey(keycode: c_int, bDown: c_int) void {
 }
 
 export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
-    //std.debug.print("{} {}\n", .{button, bDown});
+    std.debug.print("#{}:{} {} {} {}\n", .{frameNum, x, y, button, bDown});
+    input_sequence.append(global_allocator, .{.frame = frameNum, .x = x, .y = y, .button = button, .bDown = bDown}) catch unreachable;
     if (bDown == 1) {
         if (button == 1) {
             if (!do_grapple) {
@@ -261,15 +273,32 @@ fn inAABB(x: i32, y: i32, min_x: i32, min_y: i32, max_x: i32, max_y: i32) bool {
 
 pub fn main(init: std.process.Init) !void {
     const allocator: std.mem.Allocator = init.gpa;
-    _ = allocator;
+    global_allocator = allocator;
+    
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
+    
+    const stdout = &stdout_writer.interface;
+    
+    
+    const slice: []u8 = try std.Io.Dir.cwd().readFileAlloc(init.io, "inputs.zon", allocator, .unlimited);
+    defer allocator.free(slice);
+    
+    const sliceZ: [:0]u8 = try allocator.dupeSentinel(u8, slice, 0);
+    defer allocator.free(sliceZ);
+    
+    const inputs: []InputEvent = try std.zon.parse.fromSliceAlloc([]InputEvent, allocator, sliceZ, null, .{});
+    defer std.zon.parse.free(allocator, inputs);
+    
+    std.debug.print("len:{}\n", .{inputs.len});
+    
+    
+    input_sequence = try std.ArrayList(InputEvent).initCapacity(allocator, 1);
+    defer input_sequence.deinit(allocator);
     
     _ = c.CNFGSetup("Grapple Game", width, height);
     screen_aabb.max.x = @floatFromInt(width);
     screen_aabb.max.y = @floatFromInt(height);
-    
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
-    const stdout = &stdout_writer.interface;
     
     var pcg: std.Random.Pcg = std.Random.Pcg.init(2);
     const rng: std.Random = pcg.random();
@@ -305,10 +334,19 @@ pub fn main(init: std.process.Init) !void {
     
     rope_len = player_pos.subtract(wrap_points[0]).length();
     
+    var input_index: usize = 0;
+    
     var last_pos: vec.Vector2f = player_pos;
     var lastTime: std.Io.Timestamp = std.Io.Clock.real.now(init.io);
-    var frameNum: usize = 0;
     while (c.CNFGHandleInput() != 0) {
+        if (inputs.len > 0 and input_index < inputs.len) {
+            const i: InputEvent = inputs[input_index];
+            if (i.frame <= frameNum) {
+                HandleButton(i.x, i.y, i.button, i.bDown);
+                input_index += 1;
+            }
+        }
+        
         c.CNFGClearFrame();
         c.CNFGGetDimensions(&width, &height);
         screen_aabb.max.x = @floatFromInt(width);
@@ -361,7 +399,7 @@ pub fn main(init: std.process.Init) !void {
             const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
             if (result) |r| {
                 if (player_pos.subtract(r).length() < rope_len - 20.0) {
-                    std.debug.print("a\n", .{});
+                    //std.debug.print("a\n", .{});
                     _ = c.CNFGColor(0xFFFF0000);
                     drawLineWorld(camera, player_pos, r);
                     num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
@@ -376,7 +414,7 @@ pub fn main(init: std.process.Init) !void {
             }
         }
         
-        std.debug.print("{}\n", .{ num_wrap_points });
+        //std.debug.print("{}\n", .{ num_wrap_points });
         
         // Rope physics
         if (do_grapple) {
@@ -453,6 +491,8 @@ pub fn main(init: std.process.Init) !void {
         lastTime = now;
         frameNum += 1;
     }
+    
+    try std.zon.stringify.serialize(input_sequence.items, .{}, stdout);
     
     try stdout.flush();
 }
