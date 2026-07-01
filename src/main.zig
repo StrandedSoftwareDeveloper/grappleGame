@@ -127,7 +127,7 @@ const AABB = struct {
         const cam_space_aabb: AABB = .{.min = aabb.min.subtract(cam.pos), .max = aabb.max.subtract(cam.pos)};
         
         if (!screen_aabb.pointInside(cam_space_aabb.min) and !screen_aabb.pointInside(cam_space_aabb.max)) {
-            return; // Yes, I know this will erroneously cancel when `screen_aabb` is entirely inside `cam_space_aabb`
+            //return; // Yes, I know this will erroneously cancel when `screen_aabb` is entirely inside `cam_space_aabb`
         }
         
         const x1: c_short = @intFromFloat(cam_space_aabb.min.x);
@@ -279,6 +279,26 @@ pub fn main(init: std.process.Init) !void {
         world_boxes[i].min = .{.x = rng.float(f32) * (screen_aabb.max.x - BOX_SIZE.x), .y = rng.float(f32) * (screen_aabb.max.y - BOX_SIZE.y)};
         world_boxes[i].max = world_boxes[i].min.add(BOX_SIZE);
     }
+    
+    world_boxes[0].min.x = -1000.0; // Bottom wall
+    world_boxes[0].min.y = 990.0;
+    world_boxes[0].max.x = 1000.0;
+    world_boxes[0].max.y = 1000.0;
+    
+    world_boxes[1].min.x = 990.0; // Right wall
+    world_boxes[1].min.y = -1000.0;
+    world_boxes[1].max.x = 1000.0;
+    world_boxes[1].max.y = 1000.0;
+    
+    world_boxes[2].min.x = -1000.0; // Top wall
+    world_boxes[2].min.y = -1000.0;
+    world_boxes[2].max.x = 1000.0;
+    world_boxes[2].max.y = -990.0;
+    
+    world_boxes[3].min.x = -1000.0; // Left wall
+    world_boxes[3].min.y = -1000.0;
+    world_boxes[3].max.x = -990.0;
+    world_boxes[3].max.y = 1000.0;
     
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
     var player_vel: vec.Vector2f = .{ .x = 0.0, .y = 0.0 };
