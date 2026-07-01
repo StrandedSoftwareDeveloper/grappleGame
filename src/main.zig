@@ -203,6 +203,26 @@ fn raycastWorld(boxes: []AABB, orig: vec.Vector2f, dir: vec.Vector2f) ?vec.Vecto
     return closestHit;
 }
 
+//`x` and `y` are in screen-space pixels
+fn castGrapple(x: c_int, y: c_int) void {
+    var target: vec.Vector2f = .zero();
+    target.x = @floatFromInt(x);
+    target.y = @floatFromInt(y);
+    target = target.add(camera.pos);
+    
+    const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(target).normalize());
+    if (result) |r| {
+        target = r;
+        
+        wrap_points[0] = target;
+        num_wrap_points = 1;
+        
+        rope_len = player_pos.subtract(wrap_points[0]).length();
+        do_grapple = true;
+        pull_in = true;
+    }
+}
+
 export fn HandleKey(keycode: c_int, bDown: c_int) void {
     _ = bDown;
     _ = keycode;
@@ -213,15 +233,7 @@ export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
     if (bDown == 1) {
         if (button == 1) {
             if (!do_grapple) {
-                do_grapple = true;
-                pull_in = true;
-                
-                wrap_points[0].x = @floatFromInt(x);
-                wrap_points[0].y = @floatFromInt(y);
-                wrap_points[0] = wrap_points[0].add(camera.pos);
-                num_wrap_points = 1;
-                
-                rope_len = player_pos.subtract(wrap_points[0]).length();
+                castGrapple(x, y);
             } else {
                 pull_in = true;
             }
