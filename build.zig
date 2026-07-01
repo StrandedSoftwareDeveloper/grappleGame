@@ -28,7 +28,11 @@ pub fn build(b: *std.Build) void {
     });
     translate_c.link_libc = true;
     translate_c.addIncludePath(.{ .cwd_relative = "include/" });
-    translate_c.linkSystemLibrary("X11", .{});
+    if (target.result.isMinGW()) {
+        translate_c.linkSystemLibrary("gdi32", .{});
+    } else {
+        translate_c.linkSystemLibrary("X11", .{});
+    }
     
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -72,8 +76,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
     
-    exe.use_llvm = false;
-    exe.use_lld = false;
+    exe.use_llvm = optimize != .Debug;
+    exe.use_lld = optimize != .Debug;
     
     exe.root_module.addIncludePath(.{ .cwd_relative = "include/" });
     exe.root_module.addCSourceFile(.{ .file = .{ .cwd_relative = "src/c.c"} });
