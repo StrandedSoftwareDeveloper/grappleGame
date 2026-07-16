@@ -268,7 +268,7 @@ export fn HandleKey(keycode: c_int, bDown: c_int) void {
 }
 
 export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
-    std.debug.print("#{}:{} {} {} {}\n", .{frameNum, x, y, button, bDown});
+    //std.debug.print("#{}:{} {} {} {}\n", .{frameNum, x, y, button, bDown});
     input_sequence.append(global_allocator, .{.frame = frameNum, .x = x, .y = y, .button = button, .bDown = bDown}) catch unreachable;
     if (bDown == 1) {
         if (button == 1) {
@@ -303,10 +303,10 @@ pub fn main(init: std.process.Init) !void {
     const allocator: std.mem.Allocator = init.gpa;
     global_allocator = allocator;
     
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
+    //var stdout_buffer: [1024]u8 = undefined;
+    //var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
     
-    const stdout = &stdout_writer.interface;
+    //const stdout = &stdout_writer.interface;
     
     
     var empty_struct_string: []u8 = undefined;
@@ -325,7 +325,7 @@ pub fn main(init: std.process.Init) !void {
     const inputs: []InputEvent = try std.zon.parse.fromSliceAlloc([]InputEvent, allocator, sliceZ, null, .{});
     defer std.zon.parse.free(allocator, inputs);
     
-    std.debug.print("len:{}\n", .{inputs.len});
+    //std.debug.print("len:{}\n", .{inputs.len});
     
     
     input_sequence = try std.ArrayList(InputEvent).initCapacity(allocator, 1);
@@ -552,9 +552,9 @@ pub fn main(init: std.process.Init) !void {
         frameNum += 1;
     }
     
-    try std.zon.stringify.serialize(input_sequence.items, .{}, stdout);
+    //try std.zon.stringify.serialize(input_sequence.items, .{}, stdout);
     
-    try stdout.flush();
+    //try stdout.flush();
 }
 
 test "simple test" {
