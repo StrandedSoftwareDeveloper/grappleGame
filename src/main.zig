@@ -483,8 +483,8 @@ pub fn main(init: std.process.Init) !void {
         for (0..point_bars.len) |i| {
             if (point_bars[i].SDF(player_pos) <= PLAYER_RAD) {
                 score += 1;
-                point_bars[i].min = .zero();
-                point_bars[i].max = .zero();
+                point_bars[i].min = .{ .x = 16384.0, .y = 16384.0 };
+                point_bars[i].max = .{ .x = 16384.0, .y = 16384.0 };
             }
         }
         
