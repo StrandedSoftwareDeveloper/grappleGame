@@ -226,9 +226,32 @@ fn castGrapple(x: c_int, y: c_int) void {
     target = target.add(camera.pos);
     
     var hit_box_index: usize = 0;
-    const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(target).normalize(), &hit_box_index);
+    const dir: vec.Vector2f = player_pos.subtract(target).normalize();
+    const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, dir, &hit_box_index);
     if (result) |r| {
         target = r;
+        
+        wrap_points[0] = target;
+        num_wrap_points = 1;
+        
+        rope_len = player_pos.subtract(wrap_points[0]).length();
+        do_grapple = true;
+        pull_in = true;
+    } else {
+        var best_point: vec.Vector2f = .zero();
+        var best_point_dot: f32 = -9999999.0;
+        for (world_boxes) |box| {
+            const corners: [4]vec.Vector2f = [4]vec.Vector2f{ box.min, .{ .x = box.max.x, .y = box.min.y }, .{ .x = box.min.x, .y = box.max.y }, box.max };
+            
+            for (corners) |corner| {
+                const dot: f32 = dir.dot(player_pos.subtract(corner).normalize());
+                if (dot > best_point_dot) {
+                    best_point = corner;
+                    best_point_dot = dot;
+                }
+            }
+        }
+        target = best_point;
         
         wrap_points[0] = target;
         num_wrap_points = 1;
@@ -315,26 +338,6 @@ pub fn main(init: std.process.Init) !void {
         world_boxes[i].max = world_boxes[i].min.add(BOX_SIZE);
     }
     
-    world_boxes[0].min.x = -1000.0; // Bottom wall
-    world_boxes[0].min.y = 990.0;
-    world_boxes[0].max.x = 1000.0;
-    world_boxes[0].max.y = 1000.0;
-    
-    world_boxes[1].min.x = 990.0; // Right wall
-    world_boxes[1].min.y = -1000.0;
-    world_boxes[1].max.x = 1000.0;
-    world_boxes[1].max.y = 1000.0;
-    
-    world_boxes[2].min.x = -1000.0; // Top wall
-    world_boxes[2].min.y = -1000.0;
-    world_boxes[2].max.x = 1000.0;
-    world_boxes[2].max.y = -990.0;
-    
-    world_boxes[3].min.x = -1000.0; // Left wall
-    world_boxes[3].min.y = -1000.0;
-    world_boxes[3].max.x = -990.0;
-    world_boxes[3].max.y = 1000.0;
-    
     for (0..point_bars.len) |i| {
         const box_width: f32 = world_boxes[i].max.x - world_boxes[i].min.x;
         const margin: f32 = (box_width / 2.0) - POINT_BAR_WIDTH * 0.5;
@@ -415,7 +418,7 @@ pub fn main(init: std.process.Init) !void {
             var hit_box_index: usize = 0;
             const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize(), &hit_box_index);
             if (result) |r| {
-                if (player_pos.subtract(r).length() < @min(player_pos.subtract(wrap_points[0]).length(), rope_len) - 10.0) {
+                if (player_pos.subtract(r).length() < @min(player_pos.subtract(wrap_points[0]).length(), rope_len) - 20.0) {
                     //std.debug.print("a {d:.2}, {d:.2}\n", .{player_pos.subtract(r).length(), rope_len});
                     const hit_box: AABB = world_boxes[hit_box_index];
                     var new_wrap_point: vec.Vector2f = .zero();
