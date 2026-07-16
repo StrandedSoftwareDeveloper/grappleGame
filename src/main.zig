@@ -13,6 +13,8 @@ const BOX_COLOR: u32 = 0x77777700;
 const PLAYER_COLOR: u32 = 0xFF000000;
 const PLAYER_RAD: f32 = 5.0;
 const ROPE_COLOR: u32 = 0x00FF0000;
+const POINT_BAR_WIDTH: f32 = 10.0;
+const POINT_BAR_COLOR: u32 = 0x22CCCC00;
 
 const Camera = struct {
     pos: vec.Vector2f,
@@ -306,6 +308,7 @@ pub fn main(init: std.process.Init) !void {
     var pcg: std.Random.Pcg = std.Random.Pcg.init(2);
     const rng: std.Random = pcg.random();
     
+    var point_bars: [world_boxes.len]AABB = undefined;
     
     for (0..world_boxes.len) |i| {
         world_boxes[i].min = .{.x = rng.float(f32) * (screen_aabb.max.x - BOX_SIZE.x), .y = rng.float(f32) * (screen_aabb.max.y - BOX_SIZE.y)};
@@ -331,6 +334,13 @@ pub fn main(init: std.process.Init) !void {
     world_boxes[3].min.y = -1000.0;
     world_boxes[3].max.x = -990.0;
     world_boxes[3].max.y = 1000.0;
+    
+    for (0..point_bars.len) |i| {
+        const box_width: f32 = world_boxes[i].max.x - world_boxes[i].min.x;
+        const margin: f32 = (box_width / 2.0) - POINT_BAR_WIDTH * 0.5;
+        point_bars[i].min = .{ .x = world_boxes[i].min.x + margin, .y = world_boxes[i].min.y - 50.0 };
+        point_bars[i].max = .{ .x = world_boxes[i].max.x - margin, .y = world_boxes[i].min.y };
+    }
     
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
     var player_vel: vec.Vector2f = .{ .x = 0.0, .y = 0.0 };
@@ -483,6 +493,11 @@ pub fn main(init: std.process.Init) !void {
         _ = c.CNFGColor(BOX_COLOR);
         for (world_boxes) |box| {
             box.draw(camera);
+        }
+        
+        _ = c.CNFGColor(POINT_BAR_COLOR);
+        for (point_bars) |bar| {
+            bar.draw(camera);
         }
         
         _ = c.CNFGColor(PLAYER_COLOR);
