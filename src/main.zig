@@ -328,7 +328,10 @@ pub fn main(init: std.process.Init) !void {
     screen_aabb.max.x = @floatFromInt(width);
     screen_aabb.max.y = @floatFromInt(height);
     
-    var pcg: std.Random.Pcg = std.Random.Pcg.init(2);
+    const seed: u64 = @intCast(std.Io.Timestamp.now(init.io, std.Io.Clock.real).toSeconds());
+    var seed_string_buf: [32]u8 = undefined;
+    const seed_string: [:0]u8 = try std.fmt.bufPrintSentinel(&seed_string_buf, "Seed: {}", .{seed}, 0);
+    var pcg: std.Random.Pcg = std.Random.Pcg.init(seed);
     const rng: std.Random = pcg.random();
     
     var point_bars: [world_boxes.len]AABB = undefined;
@@ -484,8 +487,9 @@ pub fn main(init: std.process.Init) !void {
         }
         
         for (0..point_bars.len) |i| {
+            point_bars[i].min.y = point_bars[i].max.y - @max(player_vel.length() / 2.0, 10.0);
             if (point_bars[i].SDF(player_pos) <= PLAYER_RAD) {
-                score += 1;
+                score += @intFromFloat(@max(player_vel.length() / 2.0, 10.0));
                 point_bars[i].min = .{ .x = 16384.0, .y = 16384.0 };
                 point_bars[i].max = .{ .x = 16384.0, .y = 16384.0 };
             }
@@ -527,6 +531,10 @@ pub fn main(init: std.process.Init) !void {
         var score_text_buffer: [32]u8 = undefined;
         const text: [:0]const u8 = try std.fmt.bufPrintSentinel(&score_text_buffer, "Score: {}", .{ score }, 0);
         c.CNFGDrawText(text, 8);
+        
+        c.CNFGPenX = 10;
+        c.CNFGPenY = 50;
+        c.CNFGDrawText(seed_string, 2);
         
         c.CNFGSwapBuffers();
         const now: std.Io.Timestamp = std.Io.Clock.real.now(init.io);
