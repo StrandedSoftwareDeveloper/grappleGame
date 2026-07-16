@@ -195,17 +195,19 @@ fn drawLineWorld(cam: Camera, a: vec.Vector2f, b: vec.Vector2f) void {
     c.CNFGTackSegment(x1, y1, x2, y2);
 }
 
-fn raycastWorld(boxes: []AABB, orig: vec.Vector2f, dir: vec.Vector2f) ?vec.Vector2f {
+fn raycastWorld(boxes: []AABB, orig: vec.Vector2f, dir: vec.Vector2f, hit_box_index: *usize) ?vec.Vector2f {
     var closestHit: ?vec.Vector2f = null;
     
-    for (boxes) |box| {
+    for (0.., boxes) |i, box| {
         const result: ?vec.Vector2f = box.raycast(orig, dir);
         if (result) |r| {
             if (closestHit) |ch| {
                 if (r.subtract(orig).length() < ch.subtract(orig).length()) {
+                    hit_box_index.* = i;
                     closestHit = r;
                 }
             } else {
+                hit_box_index.* = i;
                 closestHit = r;
             }
         }
@@ -221,7 +223,8 @@ fn castGrapple(x: c_int, y: c_int) void {
     target.y = @floatFromInt(y);
     target = target.add(camera.pos);
     
-    const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(target).normalize());
+    var hit_box_index: usize = 0;
+    const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(target).normalize(), &hit_box_index);
     if (result) |r| {
         target = r;
         
@@ -372,7 +375,8 @@ pub fn main(init: std.process.Init) !void {
         
         // Unwrap logic
         if (do_grapple and num_wrap_points > 1) {
-            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize());
+            var hit_box_index: usize = 0;
+            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[1]).normalize(), &hit_box_index);
             //_ = c.CNFGColor(0x77777700);
             //drawCircleWorld(camera, player_pos, 10.0);
             //_ = c.CNFGColor(0x77777700);
@@ -396,19 +400,25 @@ pub fn main(init: std.process.Init) !void {
         
         // Wrap logic
         if (do_grapple) {
-            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize());
+            var hit_box_index: usize = 0;
+            const result: ?vec.Vector2f = raycastWorld(&world_boxes, player_pos, player_pos.subtract(wrap_points[0]).normalize(), &hit_box_index);
             if (result) |r| {
-                if (player_pos.subtract(r).length() < @min(player_pos.subtract(wrap_points[0]).length(), rope_len) - 20.0) {
+                if (player_pos.subtract(r).length() < @min(player_pos.subtract(wrap_points[0]).length(), rope_len) - 10.0) {
                     //std.debug.print("a {d:.2}, {d:.2}\n", .{player_pos.subtract(r).length(), rope_len});
+                    const hit_box: AABB = world_boxes[hit_box_index];
+                    var new_wrap_point: vec.Vector2f = .zero();
+                    new_wrap_point.x = if (@abs(r.x - hit_box.min.x) < @abs(r.x - hit_box.max.x)) hit_box.min.x else hit_box.max.x;
+                    new_wrap_point.y = if (@abs(r.y - hit_box.min.y) < @abs(r.y - hit_box.max.y)) hit_box.min.y else hit_box.max.y;
+                    
                     _ = c.CNFGColor(0xFFFF0000);
-                    drawLineWorld(camera, player_pos, r);
+                    drawLineWorld(camera, player_pos, new_wrap_point);
                     num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
                     var i: usize = num_wrap_points - 1;
                     while (i > 0) : (i -= 1) {
                         //std.debug.print("{}\n", .{i});
                         wrap_points[i] = wrap_points[i - 1];
                     }
-                    wrap_points[0] = r;
+                    wrap_points[0] = new_wrap_point;
                     rope_len = player_pos.subtract(wrap_points[0]).length();
                 }
             }
