@@ -342,7 +342,7 @@ pub fn main(init: std.process.Init) !void {
         point_bars[i].max = .{ .x = world_boxes[i].max.x - margin, .y = world_boxes[i].min.y };
     }
     
-    const score: u32 = 0;
+    var score: u32 = 0;
     
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
     var player_vel: vec.Vector2f = .{ .x = 0.0, .y = 0.0 };
@@ -477,6 +477,14 @@ pub fn main(init: std.process.Init) !void {
                     player_pos = cp.add(dir.multScalar(PLAYER_RAD));
                 }
                 colliding = true;
+            }
+        }
+        
+        for (0..point_bars.len) |i| {
+            if (point_bars[i].SDF(player_pos) <= PLAYER_RAD) {
+                score += 1;
+                point_bars[i].min = .zero();
+                point_bars[i].max = .zero();
             }
         }
         
