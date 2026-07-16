@@ -342,6 +342,8 @@ pub fn main(init: std.process.Init) !void {
         point_bars[i].max = .{ .x = world_boxes[i].max.x - margin, .y = world_boxes[i].min.y };
     }
     
+    const score: u32 = 0;
+    
     player_pos = .{ .x = screen_aabb.max.x * 0.5, .y = screen_aabb.max.y * 0.5 };
     var player_vel: vec.Vector2f = .{ .x = 0.0, .y = 0.0 };
     
@@ -507,6 +509,13 @@ pub fn main(init: std.process.Init) !void {
             _ = c.CNFGColor(0x0000FF00);
             //drawCircleWorld(camera, cp, 4.0);
         }
+        
+        _ = c.CNFGColor(0xFFFFFF00);
+        c.CNFGPenX = 10;
+        c.CNFGPenY = 10;
+        var score_text_buffer: [32]u8 = undefined;
+        const text: [:0]const u8 = try std.fmt.bufPrintSentinel(&score_text_buffer, "Score: {}", .{ score }, 0);
+        c.CNFGDrawText(text, 8);
         
         c.CNFGSwapBuffers();
         const now: std.Io.Timestamp = std.Io.Clock.real.now(init.io);
