@@ -309,7 +309,14 @@ pub fn main(init: std.process.Init) !void {
     const stdout = &stdout_writer.interface;
     
     
-    const slice: []u8 = try std.Io.Dir.cwd().readFileAlloc(init.io, "inputs.zon", allocator, .unlimited);
+    var empty_struct_string: []u8 = undefined;
+    const slice: []u8 = std.Io.Dir.cwd().readFileAlloc(init.io, "inputs.zon", allocator, .unlimited) catch blk: {
+        empty_struct_string = try allocator.alloc(u8, 3);
+        empty_struct_string[0] = '.';
+        empty_struct_string[1] = '{';
+        empty_struct_string[2] = '}';
+        break :blk empty_struct_string;
+    };
     defer allocator.free(slice);
     
     const sliceZ: [:0]u8 = try allocator.dupeSentinel(u8, slice, 0);
