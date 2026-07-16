@@ -1,5 +1,6 @@
 const std = @import("std");
 const vec = @import("vector.zig");
+const builtin = @import("builtin");
 const c = @import("c");
 
 // export var CNFGPenX: c_int = 0;
@@ -15,6 +16,8 @@ const PLAYER_RAD: f32 = 5.0;
 const ROPE_COLOR: u32 = 0x00FF0000;
 const POINT_BAR_WIDTH: f32 = 10.0;
 const POINT_BAR_COLOR: u32 = 0x22CCCC00;
+const LEFT_CLICK: c_short = 1;
+const RIGHT_CLICK: c_short = if (builtin.target.os.tag == .windows) 2 else 3;
 
 const Camera = struct {
     pos: vec.Vector2f,
@@ -270,18 +273,18 @@ export fn HandleKey(keycode: c_int, bDown: c_int) void {
 export fn HandleButton(x: c_int, y: c_int, button: c_int, bDown: c_int) void {
     //std.debug.print("#{}:{} {} {} {}\n", .{frameNum, x, y, button, bDown});
     input_sequence.append(global_allocator, .{.frame = frameNum, .x = x, .y = y, .button = button, .bDown = bDown}) catch unreachable;
-    if (bDown == 1) {
-        if (button == 1) {
+    if (bDown == LEFT_CLICK) {
+        if (button == LEFT_CLICK) {
             if (!do_grapple) {
                 castGrapple(x, y);
             } else {
                 pull_in = true;
             }
-        } else if (button == 3) {
+        } else if (button == RIGHT_CLICK) {
             do_grapple = false;
         }
     } else if (bDown == 0) {
-        if (button == 1) {
+        if (button == LEFT_CLICK) {
             pull_in = false;
         }
     }
