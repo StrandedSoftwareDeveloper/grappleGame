@@ -16,6 +16,7 @@ const PLAYER_RAD: f32 = 5.0;
 const ROPE_COLOR: u32 = 0x00FF0000;
 const POINT_BAR_WIDTH: f32 = 10.0;
 const POINT_BAR_COLOR: u32 = 0x22CCCC00;
+const GRAPPLE_PREVIEW_COLOR: u32 = 0x55555500;
 const LEFT_CLICK: c_short = 1;
 const RIGHT_CLICK: c_short = if (builtin.target.os.tag == .windows) 2 else 3;
 
@@ -198,6 +199,16 @@ fn drawLineWorld(cam: Camera, a: vec.Vector2f, b: vec.Vector2f) void {
     const x2: c_short = @intFromFloat(b_cam_space.x);
     const y2: c_short = @intFromFloat(b_cam_space.y);
     c.CNFGTackSegment(x1, y1, x2, y2);
+}
+
+fn drawDottedLineWorld(cam: Camera, a: vec.Vector2f, b: vec.Vector2f, segment_length: f32) void {
+    const len: f32 = a.subtract(b).length();
+    const num_segments: usize = @ceil(len / segment_length);
+    for (0..num_segments) |i| {
+        const k_a: f32 = (@as(f32, @floatFromInt(i)) * segment_length) / len;
+        const k_b: f32 = k_a + (segment_length / len) * 0.5;
+        drawLineWorld(cam, vec.Vector2f.lerp(a, b, .{ .x = k_a, .y = k_a }), vec.Vector2f.lerp(a, b, .{ .x = k_b, .y = k_b }));
+    }
 }
 
 fn raycastWorld(boxes: []AABB, orig: vec.Vector2f, dir: vec.Vector2f, hit_box_index: *usize) ?vec.Vector2f {
@@ -512,6 +523,12 @@ pub fn main(init: std.process.Init) !void {
             for (0..num_wrap_points-1) |i| {
                 drawLineWorld(camera, wrap_points[i], wrap_points[i+1]);
             }
+        }
+        
+        _ = c.CNFGColor(GRAPPLE_PREVIEW_COLOR);
+        if (!do_grapple) {
+            const grapple_preview_target: vec.Vector2f = calcGrappleTarget(mouseX, mouseY);
+            drawDottedLineWorld(camera, player_pos, grapple_preview_target, 20.0);
         }
         
         _ = c.CNFGColor(BOX_COLOR);
