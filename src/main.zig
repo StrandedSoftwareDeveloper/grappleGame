@@ -9,14 +9,16 @@ const c = @import("c");
 // export var CNFGLastColor: u32 = 0;
 // export var CNFGDialogColor: u32 = 0;
 
-const BOX_SIZE: vec.Vector2f = .{.x = 50, .y = 50};
 const BOX_COLOR: u32 = 0x77777700;
 const PLAYER_COLOR: u32 = 0xFF000000;
-const PLAYER_RAD: f32 = 5.0;
 const ROPE_COLOR: u32 = 0x00FF0000;
-const POINT_BAR_WIDTH: f32 = 10.0;
 const POINT_BAR_COLOR: u32 = 0x22CCCC00;
 const GRAPPLE_PREVIEW_COLOR: u32 = 0x55555500;
+const TEXT_COLOR: u32 = 0xFFFFFF00;
+
+const BOX_SIZE: vec.Vector2f = .{.x = 50, .y = 50};
+const PLAYER_RAD: f32 = 5.0;
+const POINT_BAR_WIDTH: f32 = 10.0;
 const LEFT_CLICK: c_short = 1;
 const RIGHT_CLICK: c_short = if (builtin.target.os.tag == .windows) 2 else 3;
 
@@ -544,7 +546,7 @@ pub fn main(init: std.process.Init) !void {
         _ = c.CNFGColor(PLAYER_COLOR);
         drawCircleWorld(camera, player_pos, PLAYER_RAD);
         
-        _ = c.CNFGColor(0xFFFFFF00);
+        _ = c.CNFGColor(TEXT_COLOR);
         c.CNFGPenX = 10;
         c.CNFGPenY = 10;
         var score_text_buffer: [32]u8 = undefined;
