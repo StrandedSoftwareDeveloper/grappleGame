@@ -421,8 +421,8 @@ pub fn main(init: std.process.Init) !void {
             //drawCircleWorld(camera, player_pos.subtract(wrap_points[1]).normalize().multScalar(-10.0).add(player_pos), 10.0);
             const is_straight: bool = wrap_points[0].subtract(player_pos).normalize().dot(wrap_points[1].subtract(player_pos).normalize()) > 0.99;
             if ((result == null or player_pos.subtract(result.?).length() > player_pos.subtract(wrap_points[1]).length() - 20.0) and is_straight) { // Unwrap
-                _ = c.CNFGColor(0xFFFFFF00);
-                drawLineWorld(camera, player_pos, wrap_points[1]);
+                //_ = c.CNFGColor(0xFFFFFF00);
+                //drawLineWorld(camera, player_pos, wrap_points[1]);
                 //std.debug.print("b\n", .{});
                 for (0..num_wrap_points-1) |i| {
                     //_ = i;
@@ -448,8 +448,8 @@ pub fn main(init: std.process.Init) !void {
                     new_wrap_point.x = if (@abs(r.x - hit_box.min.x) < @abs(r.x - hit_box.max.x)) hit_box.min.x else hit_box.max.x;
                     new_wrap_point.y = if (@abs(r.y - hit_box.min.y) < @abs(r.y - hit_box.max.y)) hit_box.min.y else hit_box.max.y;
                     
-                    _ = c.CNFGColor(0xFFFF0000);
-                    drawLineWorld(camera, player_pos, new_wrap_point);
+                    //_ = c.CNFGColor(0xFFFF0000);
+                    //drawLineWorld(camera, player_pos, new_wrap_point);
                     num_wrap_points = @min(num_wrap_points + 1, wrap_points.len);
                     var i: usize = num_wrap_points - 1;
                     while (i > 0) : (i -= 1) {
@@ -483,7 +483,6 @@ pub fn main(init: std.process.Init) !void {
         }
         
         // Collision physics
-        var colliding: bool = false;
         var cp: vec.Vector2f = .zero();
         for (world_boxes) |box| {
             const sdf: f32 = box.SDF(player_pos);
@@ -502,7 +501,6 @@ pub fn main(init: std.process.Init) !void {
                 } else {
                     player_pos = cp.add(dir.multScalar(PLAYER_RAD));
                 }
-                colliding = true;
             }
         }
         
@@ -545,11 +543,6 @@ pub fn main(init: std.process.Init) !void {
         
         _ = c.CNFGColor(PLAYER_COLOR);
         drawCircleWorld(camera, player_pos, PLAYER_RAD);
-        
-        if (colliding) {
-            _ = c.CNFGColor(0x0000FF00);
-            //drawCircleWorld(camera, cp, 4.0);
-        }
         
         _ = c.CNFGColor(0xFFFFFF00);
         c.CNFGPenX = 10;
