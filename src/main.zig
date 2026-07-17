@@ -355,7 +355,9 @@ pub fn main(init: std.process.Init) !void {
     var point_bars: [world_boxes.len]AABB = undefined;
     
     for (0..world_boxes.len) |i| {
-        world_boxes[i].min = .{.x = rng.float(f32) * (screen_aabb.max.x - BOX_SIZE.x), .y = rng.float(f32) * (screen_aabb.max.y - BOX_SIZE.y)};
+        const max_x: f32 = screen_aabb.max.x * 2.0;
+        const max_y: f32 = screen_aabb.max.y * 2.0;
+        world_boxes[i].min = .{.x = rng.float(f32) * max_x, .y = rng.float(f32) * max_y};
         world_boxes[i].max = world_boxes[i].min.add(BOX_SIZE);
     }
     
